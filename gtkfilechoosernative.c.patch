@@ -1,6 +1,6 @@
---- gtk/gtkfilechoosernative.c	2022-08-28 21:32:38.000000000 +0700
-+++ gtkfilechoosernative.c	2022-09-01 16:56:58.580322016 +0700
-@@ -219,12 +219,13 @@
+--- gtk/gtkfilechoosernative.c	2022-09-01 17:40:13.565151549 +0700
++++ gtkfilechoosernative.c	2022-09-01 17:40:31.044939610 +0700
+@@ -219,6 +219,7 @@
    PROP_0,
    PROP_ACCEPT_LABEL,
    PROP_CANCEL_LABEL,
@@ -8,13 +8,6 @@
    LAST_ARG,
  };
  
- static GParamSpec *native_props[LAST_ARG] = { NULL, };
- 
--static void    _gtk_file_chooser_native_iface_init   (GtkFileChooserIface  *iface);
-+//static void    _gtk_file_chooser_native_iface_init   (GtkFileChooserIface  *iface);
- 
- G_DEFINE_TYPE_WITH_CODE (GtkFileChooserNative, gtk_file_chooser_native, GTK_TYPE_NATIVE_DIALOG,
-                          G_IMPLEMENT_INTERFACE (GTK_TYPE_FILE_CHOOSER,
 @@ -378,8 +379,8 @@
  
    self->choices = g_slist_append (self->choices, choice);
@@ -179,24 +172,24 @@
  
 -  gtk_window_set_title (GTK_WINDOW (self->dialog),
 -                        gtk_native_dialog_get_title (GTK_NATIVE_DIALOG (self)));
+-
+-  gtk_window_set_transient_for (GTK_WINDOW (self->dialog),
+-                                gtk_native_dialog_get_transient_for (GTK_NATIVE_DIALOG (self)));
 +  //gtk_window_set_title (GTK_WINDOW (self->dialog),
 +  //                      gtk_native_dialog_get_title (GTK_NATIVE_DIALOG (self)));
  
--  gtk_window_set_transient_for (GTK_WINDOW (self->dialog),
--                                gtk_native_dialog_get_transient_for (GTK_NATIVE_DIALOG (self)));
-+  //gtk_window_set_transient_for (GTK_WINDOW (self->dialog),
-+  //                              gtk_native_dialog_get_transient_for (GTK_NATIVE_DIALOG (self)));
- 
 -  gtk_window_set_modal (GTK_WINDOW (self->dialog),
 -                        gtk_native_dialog_get_modal (GTK_NATIVE_DIALOG (self)));
-+  //gtk_window_set_modal (GTK_WINDOW (self->dialog),
-+  //                      gtk_native_dialog_get_modal (GTK_NATIVE_DIALOG (self)));
++  //gtk_window_set_transient_for (GTK_WINDOW (self->dialog),
++  //                              gtk_native_dialog_get_transient_for (GTK_NATIVE_DIALOG (self)));
  
 -  g_signal_connect (self->dialog,
 -                    "response",
 -                    G_CALLBACK (dialog_response_cb),
 -                    self);
--
++  //gtk_window_set_modal (GTK_WINDOW (self->dialog),
++  //                      gtk_native_dialog_get_modal (GTK_NATIVE_DIALOG (self)));
+ 
 -  g_signal_connect (self->dialog,
 -                    "update-preview",
 -                    G_CALLBACK (dialog_update_preview_cb),
