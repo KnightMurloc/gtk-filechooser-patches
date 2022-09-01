@@ -1,0 +1,36 @@
+--- gtk/gtkdialog.c	2022-08-28 21:32:38.000000000 +0700
++++ gtkdialog.c	2022-08-26 19:51:53.818759305 +0700
+@@ -224,7 +224,7 @@
+                                                           GtkBuilder    *builder,
+                                                           GObject       *child,
+                                                           const gchar   *type);
+-
++static gint gtk_dialog_run_real (GtkDialog *dialog);
+ 
+ enum {
+   PROP_0,
+@@ -536,7 +536,7 @@
+   gtk_widget_class_set_accessible_role (widget_class, ATK_ROLE_DIALOG);
+ 
+   class->close = gtk_dialog_close;
+-
++	class->run = gtk_dialog_run_real;
+   /**
+    * GtkDialog::response:
+    * @dialog: the object on which the signal is emitted
+@@ -1348,8 +1348,14 @@
+  *
+  * Returns: response ID
+  **/
++
++gint gtk_dialog_run (GtkDialog *dialog){
++	GtkDialogClass* class = GTK_DIALOG_GET_CLASS(dialog);
++	return class->run(dialog);
++}
++
+ gint
+-gtk_dialog_run (GtkDialog *dialog)
++gtk_dialog_run_real (GtkDialog *dialog)
+ {
+   RunInfo ri = { NULL, GTK_RESPONSE_NONE, NULL, FALSE };
+   gboolean was_modal;

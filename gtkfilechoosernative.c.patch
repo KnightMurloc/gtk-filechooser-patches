@@ -1,0 +1,335 @@
+--- gtk/gtkfilechoosernative.c	2022-08-28 21:32:38.000000000 +0700
++++ gtkfilechoosernative.c	2022-09-01 16:56:58.580322016 +0700
+@@ -219,12 +219,13 @@
+   PROP_0,
+   PROP_ACCEPT_LABEL,
+   PROP_CANCEL_LABEL,
++	PROP_ACTION,
+   LAST_ARG,
+ };
+ 
+ static GParamSpec *native_props[LAST_ARG] = { NULL, };
+ 
+-static void    _gtk_file_chooser_native_iface_init   (GtkFileChooserIface  *iface);
++//static void    _gtk_file_chooser_native_iface_init   (GtkFileChooserIface  *iface);
+ 
+ G_DEFINE_TYPE_WITH_CODE (GtkFileChooserNative, gtk_file_chooser_native, GTK_TYPE_NATIVE_DIALOG,
+                          G_IMPLEMENT_INTERFACE (GTK_TYPE_FILE_CHOOSER,
+@@ -378,8 +379,8 @@
+ 
+   self->choices = g_slist_append (self->choices, choice);
+ 
+-  gtk_file_chooser_add_choice (GTK_FILE_CHOOSER (self->dialog),
+-                               id, label, options, option_labels);
++  //gtk_file_chooser_add_choice (GTK_FILE_CHOOSER (self->dialog),
++  //                             id, label, options, option_labels);
+ }
+ 
+ static void
+@@ -399,7 +400,7 @@
+ 
+   gtk_file_chooser_native_choice_free (choice);
+ 
+-  gtk_file_chooser_remove_choice (GTK_FILE_CHOOSER (self->dialog), id);
++  //gtk_file_chooser_remove_choice (GTK_FILE_CHOOSER (self->dialog), id);
+ }
+ 
+ static void
+@@ -426,7 +427,7 @@
+   g_free (choice->selected);
+   choice->selected = g_strdup (selected);
+ 
+-  gtk_file_chooser_set_choice (GTK_FILE_CHOOSER (self->dialog), id, selected);
++  //gtk_file_chooser_set_choice (GTK_FILE_CHOOSER (self->dialog), id, selected);
+ }
+ 
+ static const char *
+@@ -442,8 +443,8 @@
+       return NULL;
+     }
+ 
+-  if (self->mode == MODE_FALLBACK)
+-    return gtk_file_chooser_get_choice (GTK_FILE_CHOOSER (self->dialog), id);
++  //if (self->mode == MODE_FALLBACK)
++  //  return gtk_file_chooser_get_choice (GTK_FILE_CHOOSER (self->dialog), id);
+ 
+   return choice->selected;
+ }
+@@ -456,7 +457,6 @@
+ 
+ {
+   GtkFileChooserNative *self = GTK_FILE_CHOOSER_NATIVE (object);
+-
+   switch (prop_id)
+     {
+     case PROP_ACCEPT_LABEL:
+@@ -469,12 +469,14 @@
+ 
+     case GTK_FILE_CHOOSER_PROP_FILTER:
+       self->current_filter = g_value_get_object (value);
+-      gtk_file_chooser_set_filter (GTK_FILE_CHOOSER (self->dialog), self->current_filter);
++      //gtk_file_chooser_set_filter (GTK_FILE_CHOOSER (self->dialog), self->current_filter);
+       g_object_notify (G_OBJECT (self), "filter");
+       break;
+-
++		case 4096:
++			self->action = g_value_get_enum(value);
++			break;
+     default:
+-      g_object_set_property (G_OBJECT (self->dialog), pspec->name, value);
++      //g_object_set_property (G_OBJECT (self->dialog), pspec->name, value);
+       break;
+     }
+ }
+@@ -486,7 +488,6 @@
+                                       GParamSpec *pspec)
+ {
+   GtkFileChooserNative *self = GTK_FILE_CHOOSER_NATIVE (object);
+-
+   switch (prop_id)
+     {
+     case PROP_ACCEPT_LABEL:
+@@ -498,12 +499,14 @@
+       break;
+ 
+     case GTK_FILE_CHOOSER_PROP_FILTER:
+-      self->current_filter = gtk_file_chooser_get_filter (GTK_FILE_CHOOSER (self->dialog));
++      //self->current_filter = gtk_file_chooser_get_filter (GTK_FILE_CHOOSER (self->dialog));
+       g_value_set_object (value, self->current_filter);
+       break;
+-
++		case 4096:
++			g_value_set_enum(value, self->action);
++			break;
+     default:
+-      g_object_get_property (G_OBJECT (self->dialog), pspec->name, value);
++      //g_object_get_property (G_OBJECT (self->dialog), pspec->name, value);
+       break;
+     }
+ }
+@@ -519,8 +522,9 @@
+ 
+   g_clear_pointer (&self->accept_label, g_free);
+   g_clear_pointer (&self->cancel_label, g_free);
+-  gtk_widget_destroy (self->dialog);
++  //gtk_widget_destroy (self->dialog);
+ 
++	g_slist_free_full (self->filters, g_object_unref);
+   g_slist_free_full (self->custom_files, g_object_unref);
+   g_slist_free_full (self->choices, (GDestroyNotify)gtk_file_chooser_native_choice_free);
+ 
+@@ -538,9 +542,13 @@
+ static void
+ gtk_file_chooser_native_init (GtkFileChooserNative *self)
+ {
++	self->filters = NULL;
++	//self->filters = g_slist_alloc();
+   /* We always create a File chooser dialog and delegate all properties to it.
+    * This way we can reuse that store, plus we always have a dialog we can use
+    * in case something makes the native one not work (like the custom widgets) */
++
++	/*
+   self->dialog = g_object_new (GTK_TYPE_FILE_CHOOSER_DIALOG, NULL);
+   self->cancel_button = gtk_dialog_add_button (GTK_DIALOG (self->dialog), _("_Cancel"), GTK_RESPONSE_CANCEL);
+   self->accept_button = gtk_dialog_add_button (GTK_DIALOG (self->dialog), _("_Open"), GTK_RESPONSE_ACCEPT);
+@@ -553,15 +561,16 @@
+                                            GTK_RESPONSE_CANCEL,
+                                            -1);
+ G_GNUC_END_IGNORE_DEPRECATIONS
+-
++	/*
+   /* We don't want to destroy on delete event, instead we hide in the response cb */
++	/*
+   g_signal_connect (self->dialog,
+                     "delete-event",
+                     G_CALLBACK (override_delete_handler),
+                     NULL);
+-
++	*/
+   /* This is used, instead of the standard delegate, to ensure that signals are not delegated. */
+-  g_object_set_qdata (G_OBJECT (self), GTK_FILE_CHOOSER_DELEGATE_QUARK, self->dialog);
++  //g_object_set_qdata (G_OBJECT (self), GTK_FILE_CHOOSER_DELEGATE_QUARK, self->dialog);
+ }
+ 
+ /**
+@@ -605,8 +614,8 @@
+ {
+   GtkFileChooserNative *self = data;
+ 
+-  g_signal_handlers_disconnect_by_func (self->dialog, dialog_response_cb, self);
+-  gtk_widget_hide (self->dialog);
++  //g_signal_handlers_disconnect_by_func (self->dialog, dialog_response_cb, self);
++  //gtk_widget_hide (self->dialog);
+ 
+   _gtk_native_dialog_emit_response (GTK_NATIVE_DIALOG (self), response_id);
+ }
+@@ -624,7 +633,8 @@
+   GtkFileChooserAction action;
+   const char *accept_label, *cancel_label;
+ 
+-  action = gtk_file_chooser_get_action (GTK_FILE_CHOOSER (self->dialog));
++  //action = gtk_file_chooser_get_action (GTK_FILE_CHOOSER (self->dialog));
++	action = self->action;
+ 
+   accept_label = self->accept_label;
+   if (accept_label == NULL)
+@@ -638,36 +648,36 @@
+ 
+   gtk_button_set_label (GTK_BUTTON (self->cancel_button), cancel_label);
+ 
+-  gtk_window_set_title (GTK_WINDOW (self->dialog),
+-                        gtk_native_dialog_get_title (GTK_NATIVE_DIALOG (self)));
++  //gtk_window_set_title (GTK_WINDOW (self->dialog),
++  //                      gtk_native_dialog_get_title (GTK_NATIVE_DIALOG (self)));
+ 
+-  gtk_window_set_transient_for (GTK_WINDOW (self->dialog),
+-                                gtk_native_dialog_get_transient_for (GTK_NATIVE_DIALOG (self)));
++  //gtk_window_set_transient_for (GTK_WINDOW (self->dialog),
++  //                              gtk_native_dialog_get_transient_for (GTK_NATIVE_DIALOG (self)));
+ 
+-  gtk_window_set_modal (GTK_WINDOW (self->dialog),
+-                        gtk_native_dialog_get_modal (GTK_NATIVE_DIALOG (self)));
++  //gtk_window_set_modal (GTK_WINDOW (self->dialog),
++  //                      gtk_native_dialog_get_modal (GTK_NATIVE_DIALOG (self)));
+ 
+-  g_signal_connect (self->dialog,
+-                    "response",
+-                    G_CALLBACK (dialog_response_cb),
+-                    self);
+-
+-  g_signal_connect (self->dialog,
+-                    "update-preview",
+-                    G_CALLBACK (dialog_update_preview_cb),
+-                    self);
++  //g_signal_connect (self->dialog,
++  //                  "response",
++  //                  G_CALLBACK (dialog_response_cb),
++  //                  self);
++
++  //g_signal_connect (self->dialog,
++  //                  "update-preview",
++  //                  G_CALLBACK (dialog_update_preview_cb),
++  //                  self);
+ 
+   G_GNUC_BEGIN_IGNORE_DEPRECATIONS
+-  gtk_window_present (GTK_WINDOW (self->dialog));
++  //gtk_window_present (GTK_WINDOW (self->dialog));
+   G_GNUC_END_IGNORE_DEPRECATIONS
+ }
+ 
+ static void
+ hide_dialog (GtkFileChooserNative *self)
+ {
+-  g_signal_handlers_disconnect_by_func (self->dialog, dialog_response_cb, self);
+-  g_signal_handlers_disconnect_by_func (self->dialog, dialog_update_preview_cb, self);
+-  gtk_widget_hide (self->dialog);
++  //g_signal_handlers_disconnect_by_func (self->dialog, dialog_response_cb, self);
++  //g_signal_handlers_disconnect_by_func (self->dialog, dialog_update_preview_cb, self);
++  //gtk_widget_hide (self->dialog);
+ }
+ 
+ static gboolean
+@@ -676,10 +686,10 @@
+                                             GError           **error)
+ {
+   GtkFileChooserNative *self = GTK_FILE_CHOOSER_NATIVE (chooser);
+-  gboolean res;
++  gboolean res = 0;
+ 
+-  res = gtk_file_chooser_set_current_folder_file (GTK_FILE_CHOOSER (self->dialog),
+-                                                  file, error);
++  //res = gtk_file_chooser_set_current_folder_file (GTK_FILE_CHOOSER (self->dialog),
++  //                                                file, error);
+ 
+ 
+   if (res)
+@@ -698,11 +708,11 @@
+                                      GError           **error)
+ {
+   GtkFileChooserNative *self = GTK_FILE_CHOOSER_NATIVE (chooser);
+-  gboolean res;
+-
+-  res = gtk_file_chooser_select_file (GTK_FILE_CHOOSER (self->dialog),
+-                                      file, error);
++  gboolean res = 0;
+ 
++  //res = gtk_file_chooser_select_file (GTK_FILE_CHOOSER (self->dialog),
++  //                                    file, error);
++	/*
+   if (res)
+     {
+       g_set_object (&self->current_file, file);
+@@ -710,7 +720,7 @@
+       g_clear_object (&self->current_folder);
+       g_clear_pointer (&self->current_name, g_free);
+     }
+-
++	*/
+   return res;
+ }
+ 
+@@ -720,7 +730,7 @@
+ {
+   GtkFileChooserNative *self = GTK_FILE_CHOOSER_NATIVE (chooser);
+ 
+-  gtk_file_chooser_set_current_name (GTK_FILE_CHOOSER (self->dialog), name);
++  //gtk_file_chooser_set_current_name (GTK_FILE_CHOOSER (self->dialog), name);
+ 
+   g_clear_pointer (&self->current_name, g_free);
+   self->current_name = g_strdup (name);
+@@ -742,7 +752,8 @@
+ 
+     case MODE_FALLBACK:
+     default:
+-      return gtk_file_chooser_get_files (GTK_FILE_CHOOSER (self->dialog));
++			return NULL;
++      //return gtk_file_chooser_get_files (GTK_FILE_CHOOSER (self->dialog));
+     }
+ }
+ 
+@@ -842,10 +853,36 @@
+                            NULL,
+                            GTK_PARAM_READWRITE);
+ 
++	/*
++	native_props[PROP_ACTION] =
++      g_param_spec_int ("action",
++                           P_("action"),
++                           P_("The action"),
++                           0,
++													 10000000,
++													 0,
++                           GTK_PARAM_READWRITE);
++ */
++
+   g_object_class_install_properties (gobject_class, LAST_ARG, native_props);
+ }
+ 
+-static void
++static void gtk_file_chooser_native_add_filter(GtkFileChooser* chooser, GtkFileFilter* filter){
++	GtkFileChooserNative *self = GTK_FILE_CHOOSER_NATIVE (chooser);
++	self->filters = g_slist_append(self->filters, filter);
++}
++
++static void gtk_file_chooser_native_remove_filter(GtkFileChooser* chooser, GtkFileFilter* filter){
++	GtkFileChooserNative *self = GTK_FILE_CHOOSER_NATIVE (chooser);
++	self->filters = g_slist_remove(self->filters, filter);
++}
++
++static GSList* gtk_file_chooser_native_list_filters(GtkFileChooser* chooser){
++	GtkFileChooserNative *self = GTK_FILE_CHOOSER_NATIVE (chooser);
++	return g_slist_copy(self->filters);
++}
++
++void
+ _gtk_file_chooser_native_iface_init (GtkFileChooserIface *iface)
+ {
+   _gtk_file_chooser_delegate_iface_init (iface);
+@@ -857,4 +894,7 @@
+   iface->remove_choice = gtk_file_chooser_native_remove_choice;
+   iface->set_choice = gtk_file_chooser_native_set_choice;
+   iface->get_choice = gtk_file_chooser_native_get_choice;
++	iface->add_filter = gtk_file_chooser_native_add_filter;
++	iface->remove_filter = gtk_file_chooser_native_remove_filter;
++	iface->list_filters = gtk_file_chooser_native_list_filters;
+ }

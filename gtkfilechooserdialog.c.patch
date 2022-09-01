@@ -1,0 +1,980 @@
+--- gtk/gtkfilechooserdialog.c	2022-08-28 21:32:38.000000000 +0700
++++ gtkfilechooserdialog.c	2022-09-01 17:19:16.085291484 +0700
+@@ -1,21 +1,3 @@
+-/* -*- Mode: C; c-file-style: "gnu"; tab-width: 8 -*- */
+-/* GTK - The GIMP Toolkit
+- * gtkfilechooserdialog.c: File selector dialog
+- * Copyright (C) 2003, Red Hat, Inc.
+- *
+- * This library is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU Lesser General Public
+- * License as published by the Free Software Foundation; either
+- * version 2 of the License, or (at your option) any later version.
+- *
+- * This library is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+- * Lesser General Public License for more details.
+- *
+- * You should have received a copy of the GNU Lesser General Public
+- * License along with this library. If not, see <http://www.gnu.org/licenses/>.
+- */
+ 
+ #include "config.h"
+ 
+@@ -37,186 +19,29 @@
+ #include "gtkdialogprivate.h"
+ #include "gtklabel.h"
+ #include "gtkfilechooserentry.h"
+-
++#include "gtkfilechoosernative.h"
+ #include <stdarg.h>
+ 
+ 
+-/**
+- * SECTION:gtkfilechooserdialog
+- * @Short_description: A file chooser dialog, suitable for “File/Open” or “File/Save” commands
+- * @Title: GtkFileChooserDialog
+- * @See_also: #GtkFileChooser, #GtkDialog, GtkFileChooserNative
+- *
+- * #GtkFileChooserDialog is a dialog box suitable for use with
+- * “File/Open” or “File/Save as” commands.  This widget works by
+- * putting a #GtkFileChooserWidget inside a #GtkDialog.  It exposes
+- * the #GtkFileChooser interface, so you can use all of the
+- * #GtkFileChooser functions on the file chooser dialog as well as
+- * those for #GtkDialog.
+- *
+- * Note that #GtkFileChooserDialog does not have any methods of its
+- * own.  Instead, you should use the functions that work on a
+- * #GtkFileChooser.
+- *
+- * If you want to integrate well with the platform you should use the
+- * #GtkFileChooserNative API, which will use a platform-specific
+- * dialog if available and fall back to GtkFileChooserDialog
+- * otherwise.
+- *
+- * ## Typical usage ## {#gtkfilechooser-typical-usage}
+- *
+- * In the simplest of cases, you can the following code to use
+- * #GtkFileChooserDialog to select a file for opening:
+- *
+- * |[
+- * GtkWidget *dialog;
+- * GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_OPEN;
+- * gint res;
+- *
+- * dialog = gtk_file_chooser_dialog_new ("Open File",
+- *                                       parent_window,
+- *                                       action,
+- *                                       _("_Cancel"),
+- *                                       GTK_RESPONSE_CANCEL,
+- *                                       _("_Open"),
+- *                                       GTK_RESPONSE_ACCEPT,
+- *                                       NULL);
+- *
+- * res = gtk_dialog_run (GTK_DIALOG (dialog));
+- * if (res == GTK_RESPONSE_ACCEPT)
+- *   {
+- *     char *filename;
+- *     GtkFileChooser *chooser = GTK_FILE_CHOOSER (dialog);
+- *     filename = gtk_file_chooser_get_filename (chooser);
+- *     open_file (filename);
+- *     g_free (filename);
+- *   }
+- *
+- * gtk_widget_destroy (dialog);
+- * ]|
+- *
+- * To use a dialog for saving, you can use this:
+- *
+- * |[
+- * GtkWidget *dialog;
+- * GtkFileChooser *chooser;
+- * GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_SAVE;
+- * gint res;
+- *
+- * dialog = gtk_file_chooser_dialog_new ("Save File",
+- *                                       parent_window,
+- *                                       action,
+- *                                       _("_Cancel"),
+- *                                       GTK_RESPONSE_CANCEL,
+- *                                       _("_Save"),
+- *                                       GTK_RESPONSE_ACCEPT,
+- *                                       NULL);
+- * chooser = GTK_FILE_CHOOSER (dialog);
+- *
+- * gtk_file_chooser_set_do_overwrite_confirmation (chooser, TRUE);
+- *
+- * if (user_edited_a_new_document)
+- *   gtk_file_chooser_set_current_name (chooser,
+- *                                      _("Untitled document"));
+- * else
+- *   gtk_file_chooser_set_filename (chooser,
+- *                                  existing_filename);
+- *
+- * res = gtk_dialog_run (GTK_DIALOG (dialog));
+- * if (res == GTK_RESPONSE_ACCEPT)
+- *   {
+- *     char *filename;
+- *
+- *     filename = gtk_file_chooser_get_filename (chooser);
+- *     save_to_file (filename);
+- *     g_free (filename);
+- *   }
+- *
+- * gtk_widget_destroy (dialog);
+- * ]|
+- *
+- * ## Setting up a file chooser dialog ## {#gtkfilechooserdialog-setting-up}
+- *
+- * There are various cases in which you may need to use a #GtkFileChooserDialog:
+- *
+- * - To select a file for opening. Use #GTK_FILE_CHOOSER_ACTION_OPEN.
+- *
+- * - To save a file for the first time. Use #GTK_FILE_CHOOSER_ACTION_SAVE,
+- *   and suggest a name such as “Untitled” with gtk_file_chooser_set_current_name().
+- *
+- * - To save a file under a different name. Use #GTK_FILE_CHOOSER_ACTION_SAVE,
+- *   and set the existing filename with gtk_file_chooser_set_filename().
+- *
+- * - To choose a folder instead of a file. Use #GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER.
+- *
+- * Note that old versions of the file chooser’s documentation suggested
+- * using gtk_file_chooser_set_current_folder() in various
+- * situations, with the intention of letting the application
+- * suggest a reasonable default folder.  This is no longer
+- * considered to be a good policy, as now the file chooser is
+- * able to make good suggestions on its own.  In general, you
+- * should only cause the file chooser to show a specific folder
+- * when it is appropriate to use gtk_file_chooser_set_filename(),
+- * i.e. when you are doing a Save As command and you already
+- * have a file saved somewhere.
+-
+- * ## Response Codes ## {#gtkfilechooserdialog-responses}
+- *
+- * #GtkFileChooserDialog inherits from #GtkDialog, so buttons that
+- * go in its action area have response codes such as
+- * #GTK_RESPONSE_ACCEPT and #GTK_RESPONSE_CANCEL.  For example, you
+- * could call gtk_file_chooser_dialog_new() as follows:
+- *
+- * |[
+- * GtkWidget *dialog;
+- * GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_OPEN;
+- *
+- * dialog = gtk_file_chooser_dialog_new ("Open File",
+- *                                       parent_window,
+- *                                       action,
+- *                                       _("_Cancel"),
+- *                                       GTK_RESPONSE_CANCEL,
+- *                                       _("_Open"),
+- *                                       GTK_RESPONSE_ACCEPT,
+- *                                       NULL);
+- * ]|
+- *
+- * This will create buttons for “Cancel” and “Open” that use stock
+- * response identifiers from #GtkResponseType.  For most dialog
+- * boxes you can use your own custom response codes rather than the
+- * ones in #GtkResponseType, but #GtkFileChooserDialog assumes that
+- * its “accept”-type action, e.g. an “Open” or “Save” button,
+- * will have one of the following response codes:
+- *
+- * - #GTK_RESPONSE_ACCEPT
+- * - #GTK_RESPONSE_OK
+- * - #GTK_RESPONSE_YES
+- * - #GTK_RESPONSE_APPLY
+- *
+- * This is because #GtkFileChooserDialog must intercept responses
+- * and switch to folders if appropriate, rather than letting the
+- * dialog terminate — the implementation uses these known
+- * response codes to know which responses can be blocked if
+- * appropriate.
+- *
+- * To summarize, make sure you use a
+- * [stock response code][gtkfilechooserdialog-responses]
+- * when you use #GtkFileChooserDialog to ensure proper operation.
+- */
++typedef enum
++{
++  TITLE = 1,
++	ACTION = 2,
++	DO_OVERWRITE_CONFIRMATION = 3,
++  N_PROPERTIES
++} Property;
+ 
++static GParamSpec *obj_properties[N_PROPERTIES] = { NULL, };
+ 
+ struct _GtkFileChooserDialogPrivate
+ {
+-  GtkWidget *widget;
+-
+-  GtkSizeGroup *buttons;
+-
+-  /* for use with GtkFileChooserEmbed */
+-  gboolean response_requested;
+-  gboolean search_setup;
+-  gboolean has_entry;
++	GtkFileChooserNative* widget;
++	char* title;
++	GtkFileChooserAction action;
+ };
+ 
++static guint response_signal;
++
+ static void     gtk_file_chooser_dialog_set_property (GObject               *object,
+                                                       guint                  prop_id,
+                                                       const GValue          *value,
+@@ -225,434 +50,341 @@
+                                                       guint                  prop_id,
+                                                       GValue                *value,
+                                                       GParamSpec            *pspec);
+-static void     gtk_file_chooser_dialog_notify       (GObject               *object,
+-                                                      GParamSpec            *pspec);
+ 
+-static void     gtk_file_chooser_dialog_map          (GtkWidget             *widget);
+-static void     gtk_file_chooser_dialog_unmap        (GtkWidget             *widget);
+-static void     gtk_file_chooser_dialog_size_allocate (GtkWidget             *widget,
+-                                                       GtkAllocation         *allocation);
+-static void     file_chooser_widget_file_activated   (GtkFileChooser        *chooser,
+-                                                      GtkFileChooserDialog  *dialog);
+-static void     file_chooser_widget_default_size_changed (GtkWidget            *widget,
+-                                                          GtkFileChooserDialog *dialog);
+-static void     file_chooser_widget_response_requested (GtkWidget            *widget,
+-                                                        GtkFileChooserDialog *dialog);
+-static void     file_chooser_widget_selection_changed (GtkWidget            *widget,
+-                                                        GtkFileChooserDialog *dialog);
+-
+-static void response_cb (GtkDialog *dialog,
+-                         gint       response_id);
+-
+-static void setup_save_entry (GtkFileChooserDialog *dialog);
+-
+-G_DEFINE_TYPE_WITH_CODE (GtkFileChooserDialog, gtk_file_chooser_dialog, GTK_TYPE_DIALOG,
+-                         G_ADD_PRIVATE (GtkFileChooserDialog)
+-                         G_IMPLEMENT_INTERFACE (GTK_TYPE_FILE_CHOOSER,
+-                                                _gtk_file_chooser_delegate_iface_init))
++static int gtk_file_chooser_dialog_run(GtkDialog* object);
+ 
+-static void
+-gtk_file_chooser_dialog_class_init (GtkFileChooserDialogClass *class)
+-{
+-  GObjectClass *gobject_class = G_OBJECT_CLASS (class);
+-  GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (class);
++static void gtk_file_chooser_dialog_interface_init(GtkFileChooserIface* iface);
+ 
+-  gobject_class->set_property = gtk_file_chooser_dialog_set_property;
+-  gobject_class->get_property = gtk_file_chooser_dialog_get_property;
+-  gobject_class->notify = gtk_file_chooser_dialog_notify;
+-
+-  widget_class->map = gtk_file_chooser_dialog_map;
+-  widget_class->unmap = gtk_file_chooser_dialog_unmap;
+-  widget_class->size_allocate = gtk_file_chooser_dialog_size_allocate;
+-
+-  gtk_widget_class_set_accessible_role (widget_class, ATK_ROLE_FILE_CHOOSER);
+-
+-  _gtk_file_chooser_install_properties (gobject_class);
+-
+-  /* Bind class to template
+-   */
+-  gtk_widget_class_set_template_from_resource (widget_class,
+-                                               "/org/gtk/libgtk/ui/gtkfilechooserdialog.ui");
+-
+-  gtk_widget_class_bind_template_child_private (widget_class, GtkFileChooserDialog, widget);
+-  gtk_widget_class_bind_template_child_private (widget_class, GtkFileChooserDialog, buttons);
+-  gtk_widget_class_bind_template_callback (widget_class, response_cb);
+-  gtk_widget_class_bind_template_callback (widget_class, file_chooser_widget_file_activated);
+-  gtk_widget_class_bind_template_callback (widget_class, file_chooser_widget_default_size_changed);
+-  gtk_widget_class_bind_template_callback (widget_class, file_chooser_widget_response_requested);
+-  gtk_widget_class_bind_template_callback (widget_class, file_chooser_widget_selection_changed);
+-}
+-
+-static void
+-gtk_file_chooser_dialog_init (GtkFileChooserDialog *dialog)
+-{
+-  dialog->priv = gtk_file_chooser_dialog_get_instance_private (dialog);
+-  dialog->priv->response_requested = FALSE;
++G_DEFINE_TYPE_WITH_CODE(GtkFileChooserDialog, gtk_file_chooser_dialog, GTK_TYPE_DIALOG,
++												G_ADD_PRIVATE (GtkFileChooserDialog)
++                        G_IMPLEMENT_INTERFACE(GTK_TYPE_FILE_CHOOSER,gtk_file_chooser_dialog_interface_init))
+ 
+-  gtk_widget_init_template (GTK_WIDGET (dialog));
+-  gtk_dialog_set_use_header_bar_from_setting (GTK_DIALOG (dialog));
+-
+-  _gtk_file_chooser_set_delegate (GTK_FILE_CHOOSER (dialog),
+-                                  GTK_FILE_CHOOSER (dialog->priv->widget));
++static int stub(){
++		printf("stub called\n");
++		return 0;
+ }
+ 
+-static GtkWidget *
+-get_accept_action_widget (GtkDialog *dialog,
+-                          gboolean   sensitive_only)
+-{
+-  gint response[] = {
+-    GTK_RESPONSE_ACCEPT,
+-    GTK_RESPONSE_OK,
+-    GTK_RESPONSE_YES,
+-    GTK_RESPONSE_APPLY
+-  };
+-  gint i;
+-  GtkWidget *widget;
+-
+-  for (i = 0; i < G_N_ELEMENTS (response); i++)
+-    {
+-      widget = gtk_dialog_get_widget_for_response (dialog, response[i]);
+-      if (widget)
+-        {
+-          if (!sensitive_only)
+-            return widget;
+-
+-          if (gtk_widget_is_sensitive (widget))
+-            return widget;
+-        }
+-    }
+-
+-  return NULL;
++static void map_stub(GtkWidget *widget){
++		gtk_file_chooser_dialog_run(widget);
+ }
+ 
+-static gboolean
+-is_stock_accept_response_id (gint response_id)
+-{
+-  return (response_id == GTK_RESPONSE_ACCEPT ||
+-          response_id == GTK_RESPONSE_OK ||
+-          response_id == GTK_RESPONSE_YES ||
+-          response_id == GTK_RESPONSE_APPLY);
++static int unmap_stub(){
++		printf("unmap_stub called\n");
++		return 0;
+ }
+ 
+-/* Callback used when the user activates a file in the file chooser widget */
+-static void
+-file_chooser_widget_file_activated (GtkFileChooser       *chooser,
+-                                    GtkFileChooserDialog *dialog)
+-{
+-  GtkWidget *widget;
+-
+-  if (gtk_window_activate_default (GTK_WINDOW (dialog)))
+-    return;
++static int size_allocate_stub(){
++		printf("size_allocate_stub called\n");
++		return 0;
++}
+ 
+-  /* There probably isn't a default widget, so make things easier for the
+-   * programmer by looking for a reasonable button on our own.
+-   */
+-  widget = get_accept_action_widget (GTK_DIALOG (dialog), TRUE);
+-  if (widget)
+-    gtk_widget_activate (widget);
++static void response(GtkFileChooserNative* self,gint response_id, GtkFileChooserDialog* data){
++	g_signal_emit(data, response_signal,0,response_id);
+ }
+ 
+-static void
+-file_chooser_widget_default_size_changed (GtkWidget            *widget,
+-                                          GtkFileChooserDialog *dialog)
+-{
+-  GtkFileChooserDialogPrivate *priv;
+-  gint default_width, default_height;
+-  GtkRequisition req, widget_req;
++static void gtk_file_chooser_dialog_constructed(GObject *obj){
++	GtkFileChooserDialog* self = GTK_FILE_CHOOSER_DIALOG (obj);
++	GtkFileChooserDialogPrivate* priv = gtk_file_chooser_dialog_get_instance_private(self);
+ 
+-  priv = gtk_file_chooser_dialog_get_instance_private (dialog);
++	char* title;
++	GtkFileChooserAction action;
++	g_object_get(self, "title", &title,"action",&action,  NULL);
+ 
+-  /* Unset any previously set size */
+-  gtk_widget_set_size_request (GTK_WIDGET (dialog), -1, -1);
++	priv->widget = gtk_file_chooser_native_new(priv->title,
++                                      NULL,
++                                      priv->action,NULL,NULL);
+ 
+-  if (gtk_widget_is_drawable (widget))
+-    {
+-      /* Force a size request of everything before we start. This will make sure
+-       * that widget->requisition is meaningful.
+-       */
+-      gtk_widget_get_preferred_size (GTK_WIDGET (dialog), &req, NULL);
+-      gtk_widget_get_preferred_size (widget, &widget_req, NULL);
+-    }
+-
+-  _gtk_file_chooser_embed_get_default_size (GTK_FILE_CHOOSER_EMBED (priv->widget),
+-                                            &default_width, &default_height);
++	g_signal_connect(priv->widget, "response", G_CALLBACK(response), self);
+ 
+-  gtk_window_resize (GTK_WINDOW (dialog), default_width, default_height);
++	G_OBJECT_CLASS (gtk_file_chooser_dialog_parent_class)->constructed(obj);
+ }
+ 
+-static void
+-file_chooser_widget_selection_changed (GtkWidget            *widget,
+-                                       GtkFileChooserDialog *dialog)
+-{
+-  GtkWidget *button;
+-  GSList *uris;
+-  gboolean sensitive;
+-
+-  button = get_accept_action_widget (GTK_DIALOG (dialog), FALSE);
+-  if (button == NULL)
+-    return;
+-
+-  uris = gtk_file_chooser_get_uris (GTK_FILE_CHOOSER (dialog->priv->widget));
+-  sensitive = (uris != NULL);
+-  gtk_widget_set_sensitive (button, sensitive);
++static void gtk_file_chooser_dialog_finalize(GObject *object){
++	GtkFileChooserDialog* self = GTK_FILE_CHOOSER_DIALOG (object);
++	GtkFileChooserDialogPrivate* priv = gtk_file_chooser_dialog_get_instance_private(self);
++	
++	g_object_unref(priv->widget);
+ 
+-  g_slist_free_full (uris, g_free);
++	G_OBJECT_CLASS (gtk_file_chooser_dialog_parent_class)->finalize (object);
+ }
+ 
+-static void
+-file_chooser_widget_response_requested (GtkWidget            *widget,
+-                                        GtkFileChooserDialog *dialog)
+-{
+-  GtkWidget *button;
+-
+-  dialog->priv->response_requested = TRUE;
+-
+-  if (gtk_window_activate_default (GTK_WINDOW (dialog)))
+-    return;
+-
+-  /* There probably isn't a default widget, so make things easier for the
+-   * programmer by looking for a reasonable button on our own.
+-   */
+-  button = get_accept_action_widget (GTK_DIALOG (dialog), TRUE);
+-  if (button)
+-    {
+-      gtk_widget_activate (button);
+-      return;
+-    }
+-
+-  dialog->priv->response_requested = FALSE;
++static void default_response(GtkFileChooserDialog* self){
++	printf("response\n");
+ }
+ 
+-static void
+-gtk_file_chooser_dialog_set_property (GObject      *object,
+-                                      guint         prop_id,
+-                                      const GValue *value,
+-                                      GParamSpec   *pspec)
++static void gtk_file_chooser_dialog_class_init(GtkFileChooserDialogClass* self){
++    printf("warning. the patched version of GtkFileChooserDialog is used. https://github.com/KnightMurloc/gtk-filechooser-patches\n");
++		GObjectClass *gobject_class = G_OBJECT_CLASS (self);
++		GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (self);
++    GtkDialogClass* parent_class = GTK_DIALOG_CLASS(self);
+ 
+-{
+-  GtkFileChooserDialogPrivate *priv;
++		gobject_class->finalize = gtk_file_chooser_dialog_finalize;
++		gobject_class->constructed = gtk_file_chooser_dialog_constructed;
++		gobject_class->set_property = gtk_file_chooser_dialog_set_property;
++  	gobject_class->get_property = gtk_file_chooser_dialog_get_property;
+ 
+-  priv = gtk_file_chooser_dialog_get_instance_private (GTK_FILE_CHOOSER_DIALOG (object));
++		widget_class->map = map_stub;
++  	widget_class->unmap = unmap_stub;
++  	widget_class->size_allocate = stub;
+ 
+-  g_object_set_property (G_OBJECT (priv->widget), pspec->name, value);
+-}
++		_gtk_file_chooser_install_properties (gobject_class);
+ 
+-static void
+-gtk_file_chooser_dialog_get_property (GObject    *object,
+-                                      guint       prop_id,
+-                                      GValue     *value,
+-                                      GParamSpec *pspec)
+-{
+-  GtkFileChooserDialogPrivate *priv;
++		obj_properties[TITLE] = g_param_spec_string(
++				"title",
++				"title",
++				"title of the dialog window",
++				NULL,
++				G_PARAM_CONSTRUCT | G_PARAM_READWRITE
++		);
++		obj_properties[DO_OVERWRITE_CONFIRMATION] = g_param_spec_boolean(
++				"do-overwrite-confirmation",
++				"do-overwrite-confirmation",
++				"do-overwrite-confirmation",
++				0,
++				G_PARAM_CONSTRUCT | G_PARAM_READWRITE
++		);
+ 
+-  priv = gtk_file_chooser_dialog_get_instance_private (GTK_FILE_CHOOSER_DIALOG (object));
++		g_object_class_install_properties (gobject_class,
++                                     N_PROPERTIES,
++                                     obj_properties);	
+ 
+-  g_object_get_property (G_OBJECT (priv->widget), pspec->name, value);
++		response_signal = g_signal_lookup("response", GTK_TYPE_DIALOG);
++		/*
++		response_signal = g_signal_new_class_handler(
++			"response",
++			G_TYPE_FROM_CLASS(self),
++			G_SIGNAL_RUN_LAST | G_SIGNAL_NO_RECURSE | G_SIGNAL_NO_HOOKS,
++			G_CALLBACK (default_response),
++			NULL,
++			NULL,
++			NULL,
++			G_TYPE_NONE,
++			0
++		);
++		*/
++    parent_class->run = gtk_file_chooser_dialog_run;
+ }
+ 
+-static void
+-gtk_file_chooser_dialog_notify (GObject    *object,
+-                                GParamSpec *pspec)
+-{
+-  if (strcmp (pspec->name, "action") == 0)
+-    setup_save_entry (GTK_FILE_CHOOSER_DIALOG (object));
+-
+-  if (G_OBJECT_CLASS (gtk_file_chooser_dialog_parent_class)->notify)
+-    G_OBJECT_CLASS (gtk_file_chooser_dialog_parent_class)->notify (object, pspec);
++static GSList* gtk_file_chooser_dialog_get_files(GtkFileChooser *chooser){
++	GtkFileChooserDialog* self = GTK_FILE_CHOOSER_DIALOG (chooser);
++	GtkFileChooserDialogPrivate* priv = gtk_file_chooser_dialog_get_instance_private(self);
++	return gtk_file_chooser_get_files(GTK_FILE_CHOOSER(priv->widget));
+ }
+ 
+-static void
+-add_button (GtkWidget *button, gpointer data)
+-{
+-  GtkFileChooserDialog *dialog = data;
+-
+-  if (GTK_IS_BUTTON (button))
+-    gtk_size_group_add_widget (dialog->priv->buttons, button);
++static gboolean gtk_file_chooser_dialog_set_current_folder(GtkFileChooser* chooser,GFile *file, GError **error){
++	GtkFileChooserDialog* self = GTK_FILE_CHOOSER_DIALOG (chooser);
++	GtkFileChooserDialogPrivate* priv = gtk_file_chooser_dialog_get_instance_private(self);
++	return gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(priv->widget), g_file_get_uri(file));
+ }
+ 
+-static void
+-setup_search (GtkFileChooserDialog *dialog)
+-{
+-  gboolean use_header;
+-
+-  if (dialog->priv->search_setup)
+-    return;
+-
+-  dialog->priv->search_setup = TRUE;
++static GFile* gtk_file_chooser_dialog_get_current_folder(GtkFileChooser *chooser){
++	GtkFileChooserDialog* self = GTK_FILE_CHOOSER_DIALOG (chooser);
++	GtkFileChooserDialogPrivate* priv = gtk_file_chooser_dialog_get_instance_private(self);
++	return gtk_file_chooser_get_current_folder_file(GTK_FILE_CHOOSER(priv->widget));
++}
+ 
+-  g_object_get (dialog, "use-header-bar", &use_header, NULL);
+-  if (use_header)
+-    {
+-      GtkWidget *button;
+-      GtkWidget *image;
+-      GtkWidget *header;
+-
+-      button = gtk_toggle_button_new ();
+-      gtk_widget_set_focus_on_click (button, FALSE);
+-      gtk_widget_set_valign (button, GTK_ALIGN_CENTER);
+-      image = gtk_image_new_from_icon_name ("edit-find-symbolic", GTK_ICON_SIZE_MENU);
+-      gtk_container_add (GTK_CONTAINER (button), image);
+-      gtk_style_context_add_class (gtk_widget_get_style_context (button), "image-button");
+-      gtk_style_context_remove_class (gtk_widget_get_style_context (button), "text-button");
+-      gtk_widget_show (image);
+-      gtk_widget_show (button);
+-
+-      header = gtk_dialog_get_header_bar (GTK_DIALOG (dialog));
+-      gtk_header_bar_pack_end (GTK_HEADER_BAR (header), button);
+-
+-      g_object_bind_property (button, "active",
+-                              dialog->priv->widget, "search-mode",
+-                              G_BINDING_BIDIRECTIONAL);
+-      g_object_bind_property (dialog->priv->widget, "subtitle",
+-                              header, "subtitle",
+-                              G_BINDING_SYNC_CREATE);
++static void gtk_file_chooser_dialog_set_current_name(GtkFileChooser *chooser, const gchar* name){
++	GtkFileChooserDialog* self = GTK_FILE_CHOOSER_DIALOG (chooser);
++	GtkFileChooserDialogPrivate* priv = gtk_file_chooser_dialog_get_instance_private(self);
++	gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(priv->widget), name);
++}
+ 
+-      gtk_container_forall (GTK_CONTAINER (header), add_button, dialog);
+-    }
++static gchar* gtk_file_chooser_dialog_get_current_name(GtkFileChooser* chooser){
++	GtkFileChooserDialog* self = GTK_FILE_CHOOSER_DIALOG (chooser);
++	GtkFileChooserDialogPrivate* priv = gtk_file_chooser_dialog_get_instance_private(self);
++	return gtk_file_chooser_get_current_name(GTK_FILE_CHOOSER(priv->widget));
+ }
+ 
+-static void
+-setup_save_entry (GtkFileChooserDialog *dialog)
+-{
+-  gboolean use_header;
+-  GtkFileChooserAction action;
+-  gboolean need_entry;
+-  GtkWidget *header;
++static gboolean gtk_file_chooser_dialog_select_file(GtkFileChooser* chooser, GFile* file,GError** error){
++	GtkFileChooserDialog* self = GTK_FILE_CHOOSER_DIALOG (chooser);
++	GtkFileChooserDialogPrivate* priv = gtk_file_chooser_dialog_get_instance_private(self);
++	return gtk_file_chooser_select_file(GTK_FILE_CHOOSER(priv->widget), file, error);
++}
+ 
+-  g_object_get (dialog,
+-                "use-header-bar", &use_header,
+-                "action", &action,
+-                NULL);
++static void gtk_file_chooser_dialog_unselect_file(GtkFileChooser* chooser,GFile* file){
++	GtkFileChooserDialog* self = GTK_FILE_CHOOSER_DIALOG (chooser);
++	GtkFileChooserDialogPrivate* priv = gtk_file_chooser_dialog_get_instance_private(self);
++	gtk_file_chooser_unselect_file(GTK_FILE_CHOOSER(priv->widget), file);
++}
+ 
+-  if (!use_header)
+-    return;
++static void gtk_file_chooser_dialog_select_all(GtkFileChooser* chooser){
++	GtkFileChooserDialog* self = GTK_FILE_CHOOSER_DIALOG (chooser);
++	GtkFileChooserDialogPrivate* priv = gtk_file_chooser_dialog_get_instance_private(self);
++	gtk_file_chooser_select_all(GTK_FILE_CHOOSER(priv->widget));
++}
+ 
+-  header = gtk_dialog_get_header_bar (GTK_DIALOG (dialog));
++static GFile* gtk_file_chooser_dialog_get_preview_file(GtkFileChooser* chooser){
++	GtkFileChooserDialog* self = GTK_FILE_CHOOSER_DIALOG (chooser);
++	GtkFileChooserDialogPrivate* priv = gtk_file_chooser_dialog_get_instance_private(self);
++	return gtk_file_chooser_get_preview_file(GTK_FILE_CHOOSER(priv->widget));
++}
+ 
+-  need_entry = action == GTK_FILE_CHOOSER_ACTION_SAVE ||
+-               action == GTK_FILE_CHOOSER_ACTION_CREATE_FOLDER;
++static GtkFileSystem* gtk_file_chooser_dialog_get_file_system(GtkFileChooser* chooser){
++	GtkFileChooserDialog* self = GTK_FILE_CHOOSER_DIALOG (chooser);
++	GtkFileChooserDialogPrivate* priv = gtk_file_chooser_dialog_get_instance_private(self);
++	return _gtk_file_chooser_get_file_system(GTK_FILE_CHOOSER(priv->widget));
++}
+ 
+-  if (need_entry && !dialog->priv->has_entry)
+-    {
+-      GtkWidget *box;
+-      GtkWidget *label;
+-      GtkWidget *entry;
+-
+-      box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+-      label = gtk_label_new_with_mnemonic (_("_Name"));
+-      entry = _gtk_file_chooser_entry_new (FALSE, FALSE);
+-      g_object_set (label, "margin-start", 6, "margin-end", 6, NULL);
+-      g_object_set (entry, "margin-start", 6, "margin-end", 6, NULL);
+-      gtk_label_set_mnemonic_widget (GTK_LABEL (label), entry);
+-      gtk_container_add (GTK_CONTAINER (box), label);
+-      gtk_container_add (GTK_CONTAINER (box), entry);
+-      gtk_widget_show_all (box);
++static void gtk_file_chooser_dialog_add_filter(GtkFileChooser* chooser, GtkFileFilter* filter){
++	GtkFileChooserDialog* self = GTK_FILE_CHOOSER_DIALOG (chooser);
++	GtkFileChooserDialogPrivate* priv = gtk_file_chooser_dialog_get_instance_private(self);
++	gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(priv->widget), filter);
++}
+ 
+-      gtk_header_bar_set_custom_title (GTK_HEADER_BAR (header), box);
+-      gtk_file_chooser_widget_set_save_entry (GTK_FILE_CHOOSER_WIDGET (dialog->priv->widget), entry);
+-    }
+-  else if (!need_entry && dialog->priv->has_entry)
+-    {
+-      gtk_header_bar_set_custom_title (GTK_HEADER_BAR (header), NULL);
+-      gtk_file_chooser_widget_set_save_entry (GTK_FILE_CHOOSER_WIDGET (dialog->priv->widget), NULL);
+-    }
++static void gtk_file_chooser_dialog_remove_filter(GtkFileChooser* chooser, GtkFileFilter* filter){
++	GtkFileChooserDialog* self = GTK_FILE_CHOOSER_DIALOG (chooser);
++	GtkFileChooserDialogPrivate* priv = gtk_file_chooser_dialog_get_instance_private(self);
++	gtk_file_chooser_remove_filter(GTK_FILE_CHOOSER(priv->widget), filter);
++}
+ 
+-  dialog->priv->has_entry = need_entry;
++static GSList* gtk_file_chooser_dialog_list_filters(GtkFileChooser* chooser){
++	GtkFileChooserDialog* self = GTK_FILE_CHOOSER_DIALOG (chooser);
++	GtkFileChooserDialogPrivate* priv = gtk_file_chooser_dialog_get_instance_private(self);
++	return gtk_file_chooser_list_filters(GTK_FILE_CHOOSER(priv->widget));
+ }
+ 
+-static void
+-ensure_default_response (GtkFileChooserDialog *dialog)
+-{
+-  GtkWidget *widget;
++static gboolean gtk_file_chooser_dialog_add_shortcut_folder(GtkFileChooser* chooser,GFile* file, GError** error){
++	GtkFileChooserDialog* self = GTK_FILE_CHOOSER_DIALOG (chooser);
++	GtkFileChooserDialogPrivate* priv = gtk_file_chooser_dialog_get_instance_private(self);
++	return gtk_file_chooser_add_shortcut_folder(GTK_FILE_CHOOSER(priv->widget),g_file_get_uri(file), error);
++}
+ 
+-  widget = get_accept_action_widget (GTK_DIALOG (dialog), TRUE);
+-  if (widget)
+-    gtk_widget_grab_default (widget);
++static gboolean gtk_file_chooser_dialog_remove_shortcut_folder(GtkFileChooser* chooser, GFile* file, GError** error){
++	GtkFileChooserDialog* self = GTK_FILE_CHOOSER_DIALOG (chooser);
++	GtkFileChooserDialogPrivate* priv = gtk_file_chooser_dialog_get_instance_private(self);
++	return gtk_file_chooser_remove_shortcut_folder(GTK_FILE_CHOOSER(priv->widget), g_file_get_uri(file), error);
+ }
+ 
+-static void
+-gtk_file_chooser_dialog_map (GtkWidget *widget)
+-{
+-  GtkFileChooserDialog *dialog = GTK_FILE_CHOOSER_DIALOG (widget);
+-  GtkFileChooserDialogPrivate *priv = dialog->priv;
++static GSList* gtk_file_chooser_dialog_list_shortcut_folders(GtkFileChooser* chooser){
++	GtkFileChooserDialog* self = GTK_FILE_CHOOSER_DIALOG (chooser);
++	GtkFileChooserDialogPrivate* priv = gtk_file_chooser_dialog_get_instance_private(self);
++	return gtk_file_chooser_list_shortcut_folders(GTK_FILE_CHOOSER(priv->widget));
++}
+ 
+-  setup_search (dialog);
+-  setup_save_entry (dialog);
+-  ensure_default_response (dialog);
++static void gtk_file_chooser_dialog_add_choice(GtkFileChooser *chooser, const char* id, const char* label, const char** options, const char** option_labels){
++	GtkFileChooserDialog* self = GTK_FILE_CHOOSER_DIALOG (chooser);
++	GtkFileChooserDialogPrivate* priv = gtk_file_chooser_dialog_get_instance_private(self);
++	gtk_file_chooser_add_choice(GTK_FILE_CHOOSER(priv->widget), id, label, options, option_labels);
++}
+ 
+-  _gtk_file_chooser_embed_initial_focus (GTK_FILE_CHOOSER_EMBED (priv->widget));
++static void gtk_file_chooser_dialog_remove_choice(GtkFileChooser* chooser, const char* id){
++	GtkFileChooserDialog* self = GTK_FILE_CHOOSER_DIALOG (chooser);
++	GtkFileChooserDialogPrivate* priv = gtk_file_chooser_dialog_get_instance_private(self);
++	gtk_file_chooser_remove_choice(GTK_FILE_CHOOSER(priv->widget), id);
++}
+ 
+-  GTK_WIDGET_CLASS (gtk_file_chooser_dialog_parent_class)->map (widget);
++static void gtk_file_chooser_dialog_set_choice(GtkFileChooser* chooser, const char* id, const char* option){
++	GtkFileChooserDialog* self = GTK_FILE_CHOOSER_DIALOG (chooser);
++	GtkFileChooserDialogPrivate* priv = gtk_file_chooser_dialog_get_instance_private(self);
++	gtk_file_chooser_set_choice(GTK_FILE_CHOOSER(priv->widget), id, option);
+ }
+ 
+-static void
+-save_dialog_geometry (GtkFileChooserDialog *dialog)
+-{
+-  GtkWindow *window;
+-  GSettings *settings;
+-  int old_x, old_y, old_width, old_height;
+-  int x, y, width, height;
++static const char* gtk_file_chooser_dialog_get_choice(GtkFileChooser* chooser, const char* id){
++	GtkFileChooserDialog* self = GTK_FILE_CHOOSER_DIALOG (chooser);
++	GtkFileChooserDialogPrivate* priv = gtk_file_chooser_dialog_get_instance_private(self);
++	return gtk_file_chooser_get_choice(GTK_FILE_CHOOSER(priv->widget), id);
++}
+ 
+-  settings = _gtk_file_chooser_get_settings_for_widget (GTK_WIDGET (dialog));
++static void current_folder_changed_stub(GtkFileChooser* chooser){
++	printf("current_folder_changed_stub \n");
++}
+ 
+-  window = GTK_WINDOW (dialog);
++static void selection_changed_stub(GtkFileChooser* chooser){
++	printf("selection_changed_stub \n");
++}
+ 
+-  gtk_window_get_position (window, &x, &y);
+-  gtk_window_get_size (window, &width, &height);
++static void update_preview_stub(GtkFileChooser* chooser){
++	printf("update_preview_stub \n");
++}
+ 
+-  g_settings_get (settings, SETTINGS_KEY_WINDOW_POSITION, "(ii)", &old_x, &old_y);
+-  if (old_x != x || old_y != y)
+-    g_settings_set (settings, SETTINGS_KEY_WINDOW_POSITION, "(ii)", x, y);
++static void file_activatedd_stub(GtkFileChooser* chooser){
++	printf("file_activatedd_stub \n");
++}
+ 
+-  g_settings_get (settings, SETTINGS_KEY_WINDOW_SIZE, "(ii)", &old_width, &old_height);
+-  if (old_width != width || old_height != height)
+-    g_settings_set (settings, SETTINGS_KEY_WINDOW_SIZE, "(ii)", width, height);
++static GtkFileChooserConfirmation confirm_overwrite_stub(GtkFileChooser *chooser){
++	printf("confirm_overwrite_stub\n");
++	return 0;
++}
+ 
+-  g_settings_apply (settings);
++static void gtk_file_chooser_dialog_interface_init(GtkFileChooserIface* iface){
++	iface->set_current_folder = gtk_file_chooser_dialog_set_current_folder;
++	iface->get_current_folder = gtk_file_chooser_dialog_get_current_folder;
++	iface->set_current_name = gtk_file_chooser_dialog_set_current_name;
++	iface->get_current_name = gtk_file_chooser_dialog_get_current_name;
++	iface->select_file = gtk_file_chooser_dialog_select_file;
++	iface->unselect_file = gtk_file_chooser_dialog_unselect_file;
++	iface->select_all = gtk_file_chooser_dialog_select_all;
++	iface->get_files = gtk_file_chooser_dialog_get_files;
++	iface->get_preview_file = gtk_file_chooser_dialog_get_preview_file;
++	iface->get_file_system = gtk_file_chooser_dialog_get_file_system;
++	iface->add_filter = gtk_file_chooser_dialog_add_filter;
++	iface->remove_filter = gtk_file_chooser_dialog_remove_filter;
++	iface->list_filters = gtk_file_chooser_dialog_list_filters;
++	iface->add_shortcut_folder = gtk_file_chooser_dialog_add_shortcut_folder;
++	iface->remove_shortcut_folder = gtk_file_chooser_dialog_remove_shortcut_folder;
++	iface->list_shortcut_folders = gtk_file_chooser_dialog_list_shortcut_folders;
++	iface->current_folder_changed = current_folder_changed_stub;
++	iface->selection_changed = selection_changed_stub;
++	iface->update_preview = update_preview_stub;
++	iface->file_activated = file_activatedd_stub;
++	iface->confirm_overwrite = confirm_overwrite_stub;
++	iface->add_choice = gtk_file_chooser_dialog_add_choice;
++	iface->remove_choice = gtk_file_chooser_dialog_remove_choice;
++	iface->set_choice = gtk_file_chooser_dialog_set_choice;
++	iface->get_choice = gtk_file_chooser_dialog_get_choice;
+ }
+ 
+-static void
+-gtk_file_chooser_dialog_unmap (GtkWidget *widget)
++static void gtk_file_chooser_dialog_init(GtkFileChooserDialog* self)
+ {
+-  GtkFileChooserDialog *dialog = GTK_FILE_CHOOSER_DIALOG (widget);
+-
+-  save_dialog_geometry (dialog);
+-
+-  GTK_WIDGET_CLASS (gtk_file_chooser_dialog_parent_class)->unmap (widget);
++		self->priv = gtk_file_chooser_dialog_get_instance_private (self);
+ }
+ 
++
+ static void
+-gtk_file_chooser_dialog_size_allocate (GtkWidget     *widget,
+-                                       GtkAllocation *allocation)
++gtk_file_chooser_dialog_set_property (GObject      *object,
++                                      guint         prop_id,
++                                      const GValue *value,
++                                      GParamSpec   *pspec)
++
+ {
+-  GTK_WIDGET_CLASS (gtk_file_chooser_dialog_parent_class)->size_allocate (widget, allocation);
++	GtkFileChooserDialog* self = GTK_FILE_CHOOSER_DIALOG (object);
++	GtkFileChooserDialogPrivate* priv = gtk_file_chooser_dialog_get_instance_private(self);
+ 
+-  if (gtk_widget_is_drawable (widget))
+-    save_dialog_geometry (GTK_FILE_CHOOSER_DIALOG (widget));
++	printf("set %s: %d\n",  pspec->name, prop_id);
++	switch((Property) prop_id){
++		case TITLE:
++			priv->title = g_value_dup_string(value);
++			break;
++		case 4096:
++			g_object_set_property (G_OBJECT (priv->widget), pspec->name, value);
++			//priv->action = g_value_get_int(value);
++			break;
++		//default:
++		//	g_object_set_property (G_OBJECT (priv->widget), pspec->name, value);
++	}
+ }
+ 
+-/* We do a signal connection here rather than overriding the method in
+- * class_init because GtkDialog::response is a RUN_LAST signal.  We want *our*
+- * handler to be run *first*, regardless of whether the user installs response
+- * handlers of his own.
+- */
+ static void
+-response_cb (GtkDialog *dialog,
+-             gint       response_id)
++gtk_file_chooser_dialog_get_property (GObject    *object,
++                                      guint       prop_id,
++                                      GValue     *value,
++                                      GParamSpec *pspec)
+ {
+-  GtkFileChooserDialogPrivate *priv;
+-
+-  priv = gtk_file_chooser_dialog_get_instance_private (GTK_FILE_CHOOSER_DIALOG (dialog));
+-
+-  /* Act only on response IDs we recognize */
+-  if (is_stock_accept_response_id (response_id) &&
+-      !priv->response_requested &&
+-      !_gtk_file_chooser_embed_should_respond (GTK_FILE_CHOOSER_EMBED (priv->widget)))
+-    {
+-      g_signal_stop_emission_by_name (dialog, "response");
+-    }
+-
+-  priv->response_requested = FALSE;
++	GtkFileChooserDialog* self = GTK_FILE_CHOOSER_DIALOG (object);
++	GtkFileChooserDialogPrivate* priv = gtk_file_chooser_dialog_get_instance_private(self);
++	printf("get %s: %d\n",  pspec->name, prop_id);
++	switch((Property) prop_id){
++		case TITLE:
++			g_value_set_string(value, priv->title);
++			break;
++		case 4096:
++			g_object_set_property (G_OBJECT (priv->widget), pspec->name, value);
++			break;
++			//g_value_set_int(value, priv->action);
++		//	break;
++		//default:
++			//g_object_get_property (G_OBJECT (priv->widget), pspec->name, value);
++	}
+ }
+ 
+ static GtkWidget *
+@@ -662,6 +394,8 @@
+                                     const gchar          *first_button_text,
+                                     va_list               varargs)
+ {
++	printf("test: %s\n", title);
++	
+   GtkWidget *result;
+   const char *button_text = first_button_text;
+   gint response_id;
+@@ -671,6 +405,7 @@
+                          "action", action,
+                          NULL);
+ 
++/*
+   if (parent)
+     gtk_window_set_transient_for (GTK_WINDOW (result), parent);
+ 
+@@ -680,25 +415,11 @@
+       gtk_dialog_add_button (GTK_DIALOG (result), button_text, response_id);
+       button_text = va_arg (varargs, const gchar *);
+     }
+-
++*/
+   return result;
++
+ }
+ 
+-/**
+- * gtk_file_chooser_dialog_new:
+- * @title: (allow-none): Title of the dialog, or %NULL
+- * @parent: (allow-none): Transient parent of the dialog, or %NULL
+- * @action: Open or save mode for the dialog
+- * @first_button_text: (allow-none): stock ID or text to go in the first button, or %NULL
+- * @...: response ID for the first button, then additional (button, id) pairs, ending with %NULL
+- *
+- * Creates a new #GtkFileChooserDialog.  This function is analogous to
+- * gtk_dialog_new_with_buttons().
+- *
+- * Returns: a new #GtkFileChooserDialog
+- *
+- * Since: 2.4
+- **/
+ GtkWidget *
+ gtk_file_chooser_dialog_new (const gchar          *title,
+                              GtkWindow            *parent,
+@@ -717,3 +438,14 @@
+ 
+   return result;
+ }
++
++static int gtk_file_chooser_dialog_run(GtkDialog* object){
++	GtkFileChooserDialog* self = GTK_FILE_CHOOSER_DIALOG (object);
++	GtkFileChooserDialogPrivate* priv = gtk_file_chooser_dialog_get_instance_private(self);
++
++	return gtk_native_dialog_run(priv->widget);
++}
++
++//GType gtk_file_chooser_dialog_get_type(void){
++//	return 0;
++//}

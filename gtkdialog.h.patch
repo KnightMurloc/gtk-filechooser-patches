@@ -1,0 +1,11 @@
+--- gtk/gtkdialog.h	2022-08-28 21:32:38.000000000 +0700
++++ gtkdialog.h	2022-08-26 19:39:23.098506741 +0700
+@@ -130,6 +130,8 @@
+ 
+   void (* close)    (GtkDialog *dialog);
+ 
++	gint (* run) (GtkDialog *dialog);
++
+   /*< private >*/
+ 
+   /* Padding for future expansion */
