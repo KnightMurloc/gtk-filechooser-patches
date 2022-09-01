@@ -1,0 +1,18 @@
+--- gtk/gtkfilechoosernativeprivate.h	2022-08-28 21:32:38.000000000 +0700
++++ gtkfilechoosernativeprivate.h	2022-09-01 16:05:37.455469405 +0700
+@@ -51,10 +51,14 @@
+   GSList *choices;
+ 
+   /* Fallback mode */
+-  GtkWidget *dialog;
++  //GtkWidget *dialog;
++	GSList* filters;
++
+   GtkWidget *accept_button;
+   GtkWidget *cancel_button;
+ 
++	GtkFileChooserAction action;
++
+   gpointer mode_data;
+ };
+ 
