@@ -22,3 +22,6 @@ ninja -C build
 ```
 
 the environment variable must also be set: GTK_USE_PORTAL=1
+
+known issues:
+czkawka 4.1.0 not work (maybe all programs with gtk3-rs are affected.)
