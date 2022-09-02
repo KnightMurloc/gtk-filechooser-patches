@@ -1,24 +1,35 @@
 --- gtk/gtkdialog.c	2022-08-28 21:32:38.000000000 +0700
-+++ gtkdialog.c	2022-08-26 19:51:53.818759305 +0700
-@@ -224,7 +224,7 @@
++++ gtkdialog.c	2022-09-02 12:47:29.518777448 +0700
+@@ -224,7 +224,8 @@
                                                            GtkBuilder    *builder,
                                                            GObject       *child,
                                                            const gchar   *type);
 -
 +static gint gtk_dialog_run_real (GtkDialog *dialog);
++static GtkWidget* gtk_dialog_add_button_real (GtkDialog* dialog, const gchar* button_text, gint response_id);
  
  enum {
    PROP_0,
-@@ -536,7 +536,7 @@
+@@ -536,7 +537,8 @@
    gtk_widget_class_set_accessible_role (widget_class, ATK_ROLE_DIALOG);
  
    class->close = gtk_dialog_close;
 -
 +	class->run = gtk_dialog_run_real;
++	class->add_button = gtk_dialog_add_button_real;
    /**
     * GtkDialog::response:
     * @dialog: the object on which the signal is emitted
-@@ -1348,8 +1348,14 @@
+@@ -1053,7 +1055,7 @@
+  * Returns: (transfer none): the #GtkButton widget that was added
+  **/
+ GtkWidget*
+-gtk_dialog_add_button (GtkDialog   *dialog,
++gtk_dialog_add_button_real (GtkDialog   *dialog,
+                        const gchar *button_text,
+                        gint         response_id)
+ {
+@@ -1348,8 +1350,19 @@
   *
   * Returns: response ID
   **/
@@ -26,6 +37,11 @@
 +gint gtk_dialog_run (GtkDialog *dialog){
 +	GtkDialogClass* class = GTK_DIALOG_GET_CLASS(dialog);
 +	return class->run(dialog);
++}
++
++GtkWidget* gtk_dialog_add_button(GtkDialog* dialog, const gchar* button_text, gint response_id){
++	GtkDialogClass* class = GTK_DIALOG_GET_CLASS(dialog);
++	return class->add_button(dialog,button_text,response_id);
 +}
 +
  gint

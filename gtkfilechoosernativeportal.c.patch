@@ -1,0 +1,13 @@
+--- gtk/gtkfilechoosernativeportal.c	2022-08-28 21:32:38.000000000 +0700
++++ gtkfilechoosernativeportal.c	2022-09-02 13:35:45.928093138 +0700
+@@ -445,8 +445,8 @@
+   GtkFileChooserAction action;
+   const char *method_name;
+ 
+-  if (!gtk_should_use_portal ())
+-    return FALSE;
++  //if (!gtk_should_use_portal ())
++  //  return FALSE;
+ 
+   connection = g_bus_get_sync (G_BUS_TYPE_SESSION, NULL, NULL);
+   if (connection == NULL)

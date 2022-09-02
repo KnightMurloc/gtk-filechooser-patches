@@ -12,6 +12,7 @@ patch -u gtk/gtkdialog.h -i gtkdialog.h.patch
 patch -u gtk/gtkfilechooserdialog.c -i gtkfilechooserdialog.c.patch
 patch -u gtk/gtkfilechoosernativeprivate.h -i gtkfilechoosernativeprivate.h.patch
 patch -u gtk/gtkfilechoosernative.c -i gtkfilechoosernative.c.patch
+patch -u gtk/gtkfilechoosernativeportal.c -i gtkfilechoosernativeportal.c.patch
 ```
 
 gtk build:

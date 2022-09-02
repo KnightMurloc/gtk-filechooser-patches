@@ -1,11 +1,19 @@
 --- gtk/gtkdialog.h	2022-08-28 21:32:38.000000000 +0700
-+++ gtkdialog.h	2022-08-26 19:39:23.098506741 +0700
-@@ -130,6 +130,8 @@
++++ gtkdialog.h	2022-09-02 12:37:33.387002303 +0700
+@@ -130,11 +130,14 @@
  
    void (* close)    (GtkDialog *dialog);
  
 +	gint (* run) (GtkDialog *dialog);
++	GtkWidget* (*add_button)(GtkDialog* dialog, const gchar* button_text, gint response_id);
 +
    /*< private >*/
  
    /* Padding for future expansion */
+-  void (*_gtk_reserved1) (void);
+-  void (*_gtk_reserved2) (void);
++  //void (*_gtk_reserved1) (void);
++  //void (*_gtk_reserved2) (void);
+   void (*_gtk_reserved3) (void);
+   void (*_gtk_reserved4) (void);
+ };
