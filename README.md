@@ -17,8 +17,8 @@ patch -u gtk/gtkfilechoosernativeportal.c -i gtkfilechoosernativeportal.c.patch
 
 gtk build:
 ```
-meson build
-ninja -C build
+meson -Dbuildtype=release release
+ninja -C release
 ```
 
 the environment variable must also be set: GTK_USE_PORTAL=1
